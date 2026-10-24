@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Dashboard de clientes com estatísticas de preços e datas." />
+  <title>Dashboard de Clientes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --ink: #101921;
+      --ink-soft: #60707c;
+      --paper: #f6f7f4;
+      --surface: #ffffff;
+      --line: #dfe6e7;
+      --lime: #d5fa6f;
+      --blue: #356dff;
+      --blue-pale: #ebf0ff;
+      --orange: #ff9969;
+      --teal: #24bfaa;
+      --shadow: 0 22px 70px rgba(16, 25, 33, 0.09);
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: Manrope, Arial, sans-serif; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 1440px; margin: 0 auto; padding: 28px 32px 54px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 34px; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--lime); color: var(--ink); font-weight: 800; letter-spacing: -0.08em; font-size: 17px; }
+    .brand-copy { line-height: 1.05; }
+    .brand-copy strong { display: block; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+    .brand-copy span { color: var(--ink-soft); font-size: 11px; margin-top: 4px; display: block; }
+    .top-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .btn { border: 1px solid var(--line); border-radius: 12px; min-height: 42px; padding: 0 15px; display: inline-flex; align-items: center; gap: 9px; background: var(--surface); color: var(--ink); font-weight: 700; font-size: 12px; transition: .18s ease; }
+    .btn:hover { transform: translateY(-1px); border-color: #aab9bd; box-shadow: 0 7px 16px rgba(16,25,33,.06); }
+    .btn-primary { background: var(--ink); color: white; border-color: var(--ink); }
+    .btn-primary:hover { background: #25333c; border-color: #25333c; }
+    .btn-lime { background: var(--lime); border-color: var(--lime); }
+    .btn svg { width: 16px; height: 16px; stroke-width: 2; }
+    .hero { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 25px; }
+    .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--blue); font-weight: 800; margin: 0 0 9px; }
+    h1 { font-size: clamp(30px, 4vw, 53px); line-height: .98; letter-spacing: -.07em; margin: 0; max-width: 650px; }
+    .hero p { color: var(--ink-soft); max-width: 540px; line-height: 1.6; margin: 15px 0 0; font-size: 14px; }
+    .status-pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-soft); padding: 10px 13px; font-size: 11px; white-space: nowrap; }
+    .status-dot { width: 7px; height: 7px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 4px rgba(36,191,170,.13); }
+    .upload-zone { background: var(--ink); color: white; border-radius: var(--radius); padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 24px; position: relative; overflow: hidden; }
+    .upload-zone:after { content: ''; position: absolute; width: 250px; height: 250px; right: -76px; top: -138px; background: var(--lime); opacity: .95; border-radius: 50%; }
+    .upload-zone.dragging { outline: 3px solid var(--lime); outline-offset: 3px; }
+    .upload-copy { position: relative; z-index: 1; display: flex; gap: 15px; align-items: center; }
+    .upload-icon { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,.1); color: var(--lime); flex: 0 0 auto; }
+    .upload-icon svg { width: 19px; }
+    .upload-copy strong { display: block; font-size: 13px; }
+    .upload-copy span { display: block; margin-top: 4px; color: #b7c0c4; font-size: 11px; }
+    .upload-actions { position: relative; z-index: 1; display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+    .upload-actions .btn { background: white; border-color: white; color: var(--ink); }
+    .upload-actions .btn:hover { background: var(--lime); border-color: var(--lime); }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 17px; }
+    .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; min-height: 139px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 8px 25px rgba(16,25,33,.025); }
+    .kpi-label { color: var(--ink-soft); text-transform: uppercase; letter-spacing: .1em; font-size: 10px; font-weight: 800; }
+    .kpi-value { font-size: clamp(27px, 3vw, 39px); font-weight: 800; letter-spacing: -.07em; margin-top: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kpi-foot { font-size: 11px; color: var(--ink-soft); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .kpi-foot b { color: var(--teal); font-weight: 800; }
+    .analytics-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .9fr); gap: 17px; margin-bottom: 17px; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px 22px; min-width: 0; }
+    .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+    .panel-title { margin: 0; font-size: 15px; letter-spacing: -.03em; }
+    .panel-subtitle { margin: 5px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.4; }
+    .chart-wrap { height: 275px; position: relative; }
+    .chart-wrap.small { height: 215px; }
+    .mini-tag { color: var(--ink-soft); background: var(--paper); border-radius: 999px; padding: 7px 10px; font-size: 10px; white-space: nowrap; }
+    .insight-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+    .insight { display: flex; align-items: center; gap: 11px; padding: 11px 0; border-bottom: 1px solid #edf0f0; }
+    .insight:last-child { border-bottom: 0; }
+    .insight-icon { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex: 0 0 auto; }
+    .insight-icon svg { width: 16px; }
+    .insight-icon.blue { color: var(--blue); background: var(--blue-pale); }
+    .insight-icon.lime { color: #647c00; background: #efffc6; }
+    .insight-icon.orange { color: #bf5a29; background: #fff0e9; }
+    .insight-copy { min-width: 0; }
+    .insight-copy span { display: block; color: var(--ink-soft); font-size: 10px; margin-bottom: 3px; }
+    .insight-copy strong { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .table-panel { padding: 0; overflow: hidden; }
+    .table-toolbar { display: flex; justify-content: space-between; gap: 15px; padding: 20px 22px 15px; align-items: center; }
+    .search { position: relative; min-width: min(290px, 48%); }
+    .search input { width: 100%; border: 1px solid var(--line); border-radius: 10px; height: 36px; padding: 0 12px 0 35px; outline: none; color: var(--ink); background: var(--paper); font-size: 11px; }
+    .search input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(53,109,255,.1); }
+    .search svg { position: absolute; left: 12px; top: 10px; width: 15px; color: var(--ink-soft); }
+    .table-scroll { overflow: auto; }
+    table { border-collapse: collapse; width: 100%; min-width: 650px; }
+    th, td { padding: 13px 22px; text-align: left; border-top: 1px solid #edf0f0; font-size: 11px; }
+    th { color: var(--ink-soft); text-transform: uppercase; letter-spacing: .11em; font-size: 9px; background: #fbfcfb; font-weight: 800; position: sticky; top: 0; }
+    td:first-child, th:first-child { width: 80px; }
+    td:nth-child(4) { font-family: 'DM Mono', monospace; font-weight: 500; }
+    td:nth-child(5) { font-family: 'DM Mono', monospace; color: var(--ink-soft); }
+    .product-chip { background: var(--blue-pale); color: #2e5dcc; border-radius: 7px; display: inline-block; padding: 5px 8px; font-weight: 700; font-size: 10px; }
+    .empty { padding: 36px 20px; text-align: center; color: var(--ink-soft); font-size: 12px; }
+    .footer-note { padding-top: 17px; color: var(--ink-soft); font-size: 10px; display: flex; justify-content: space-between; gap: 15px; }
+    .mono { font-family: 'DM Mono', monospace; }
+    .toast { position: fixed; bottom: 22px; right: 22px; z-index: 20; padding: 13px 16px; background: var(--ink); color: white; border-radius: 11px; box-shadow: var(--shadow); font-size: 12px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .22s ease; max-width: 320px; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } .analytics-grid { grid-template-columns: 1fr; } .hero { align-items: flex-start; flex-direction: column; } }
+    @media (max-width: 620px) { .shell { padding: 19px 16px 40px; } .topbar, .upload-zone, .table-toolbar { align-items: flex-start; flex-direction: column; } .top-actions, .upload-actions { width: 100%; justify-content: flex-start; } .upload-actions .btn { flex: 1; justify-content: center; } .kpis { gap: 10px; } .kpi { padding: 15px; min-height: 122px; } .kpi-value { font-size: 27px; } .status-pill { align-self: flex-start; } .table-toolbar .search { min-width: 100%; } }
+  </style>
+</head>
+<body>
+  <main class="shell" id="dashboard">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">cd</div><div class="brand-copy"><strong>clientes / insights</strong><span>Leitura executiva da sua planilha</span></div></div>
+      <div class="top-actions">
+        <button class="btn" id="csvBtn" type="button"><span aria-hidden="true">↓</span> Exportar CSV</button>
+        <button class="btn btn-primary" id="pdfBtn" type="button"><span aria-hidden="true">↗</span> Salvar em PDF</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div><p class="eyebrow">Painel de acompanhamento</p><h1>Seus clientes,<br><em>em perspectiva.</em></h1><p>Importe a planilha e acompanhe volume, valor médio e evolução das vendas em uma única leitura.</p></div>
+      <div class="status-pill"><span class="status-dot"></span><span id="dataStatus">Dados de exemplo carregados</span></div>
+    </section>
+
+    <section class="upload-zone" id="dropZone">
+      <div class="upload-copy"><div class="upload-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 20h14" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><strong>Traga sua planilha para cá</strong><span>Formatos aceitos: .xlsx, .xls ou .csv · processamento local no navegador</span></div></div>
+      <div class="upload-actions"><button class="btn" id="importBtn" type="button">Importar Excel</button><button class="btn" id="sampleBtn" type="button">Usar exemplo</button><input id="fileInput" type="file" accept=".xlsx,.xls,.csv" hidden /></div>
+    </section>
+
+    <section class="kpis" aria-label="Resumo estatístico">
+      <article class="kpi"><span class="kpi-label">Clientes cadastrados</span><strong class="kpi-value" id="totalClients">—</strong><span class="kpi-foot"><span>linhas válidas na base</span><b id="clientDelta">● ativo</b></span></article>
+      <article class="kpi"><span class="kpi-label">Valor total</span><strong class="kpi-value" id="totalValue">—</strong><span class="kpi-foot"><span>soma dos pedidos</span><b id="valueDelta">● atualizado</b></span></article>
+      <article class="kpi"><span class="kpi-label">Ticket médio</span><strong class="kpi-value" id="averageValue">—</strong><span class="kpi-foot"><span>média por cliente</span><b id="averageDelta">● calculado</b></span></article>
+      <article class="kpi"><span class="kpi-label">Período analisado</span><strong class="kpi-value" id="dateRange">—</strong><span class="kpi-foot"><span>menor → maior data</span><b id="dateDelta">● intervalo</b></span></article>
+    </section>
+
+    <section class="analytics-grid">
+      <article class="panel"><div class="panel-head"><div><h2 class="panel-title">Evolução do valor</h2><p class="panel-subtitle">Soma dos valores por data registrada</p></div><span class="mini-tag" id="chartPeriod">15 registros</span></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></article>
+      <article class="panel"><div class="panel-head"><div><h2 class="panel-title">Mix de produtos</h2><p class="panel-subtitle">Participação por quantidade de clientes</p></div></div><div class="chart-wrap small"><canvas id="productChart"></canvas></div><ul class="insight-list"><li class="insight"><div class="insight-icon blue"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12h18M12 3v18" stroke-linecap="round"/></svg></div><div class="insight-copy"><span>Produto líder</span><strong id="topProduct">—</strong></div></li><li class="insight"><div class="insight-icon lime"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12.5 9.5 17 19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="insight-copy"><span>Maior pedido</span><strong id="highestOrder">—</strong></div></li><li class="insight"><div class="insight-icon orange"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6v6l4 2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9"/></svg></div><div class="insight-copy"><span>Data mais recente</span><strong id="latestDate">—</strong></div></li></ul></article>
+    </section>
+
+    <section class="panel table-panel"><div class="table-toolbar"><div><h2 class="panel-title">Base de clientes</h2><p class="panel-subtitle">Dados usados nos indicadores acima</p></div><label class="search"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4" stroke-linecap="round"/></svg><input id="searchInput" type="search" placeholder="Buscar cliente ou produto..." /></label></div><div class="table-scroll"><table><thead><tr><th>Id</th><th>Nome</th><th>Produto</th><th>Valor</th><th>Data</th></tr></thead><tbody id="tableBody"></tbody></table></div><div class="footer-note"><span>Use o botão “Importar Excel” para substituir os dados.</span><span class="mono" id="rowCount">15 / 15 linhas</span></div></section>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const sampleData = [
+      { Id: 1, Nome: 'Ana Souza', Produto: 'Plano Essencial', Valor: 189.9, Data: '2026-01-08' },
+      { Id: 2, Nome: 'Bruno Lima', Produto: 'Plano Pro', Valor: 349.9, Data: '2026-01-10' },
+      { Id: 3, Nome: 'Carla Mendes', Produto: 'Consultoria', Valor: 680, Data: '2026-01-13' },
+      { Id: 4, Nome: 'Diego Alves', Produto: 'Plano Essencial', Valor: 189.9, Data: '2026-01-15' },
+      { Id: 5, Nome: 'Elisa Rocha', Produto: 'Plano Pro', Valor: 349.9, Data: '2026-01-18' },
+      { Id: 6, Nome: 'Fabio Costa', Produto: 'Workshop', Valor: 520, Data: '2026-01-21' },
+      { Id: 7, Nome: 'Gabriela Reis', Produto: 'Plano Essencial', Valor: 189.9, Data: '2026-01-24' },
+      { Id: 8, Nome: 'Henrique Dias', Produto: 'Consultoria', Valor: 890, Data: '2026-01-28' },
+      { Id: 9, Nome: 'Isabela Nunes', Produto: 'Plano Pro', Valor: 399.9, Data: '2026-02-02' },
+      { Id: 10, Nome: 'João Martins', Produto: 'Workshop', Valor: 450, Data: '2026-02-05' },
+      { Id: 11, Nome: 'Karen Freitas', Produto: 'Plano Essencial', Valor: 209.9, Data: '2026-02-08' },
+      { Id: 12, Nome: 'Lucas Teixeira', Produto: 'Plano Pro', Valor: 429.9, Data: '2026-02-11' },
+      { Id: 13, Nome: 'Marina Prado', Produto: 'Consultoria', Valor: 760, Data: '2026-02-16' },
+      { Id: 14, Nome: 'Nicolas Santos', Produto: 'Plano Essencial', Valor: 209.9, Data: '2026-02-20' },
+      { Id: 15, Nome: 'Olivia Castro', Produto: 'Plano Pro', Valor: 459.9, Data: '2026-02-24' }
+    ];
+    let data = [...sampleData];
+    let trendChart = null;
+    let productChart = null;
+    const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+    const integer = new Intl.NumberFormat('pt-BR');
+    const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const shortDateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' });
+    const $ = (id) => document.getElementById(id);
+    const normalizeKey = (key) => String(key ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanNumber = (value) => { if (typeof value === 'number') return value; const text = String(value ?? '').trim().replace(/R\$\s?/g, '').replace(/\./g, '').replace(',', '.'); const n = Number(text.replace(/[^0-9.-]/g, '')); return Number.isFinite(n) ? n : 0; };
+    const parseDate = (value) => { if (value instanceof Date && !Number.isNaN(value)) return value; if (typeof value === 'number' && window.XLSX?.SSF) { const parsed = XLSX.SSF.parse_date_code(value); if (parsed) return new Date(parsed.y, parsed.m - 1, parsed.d); } const text = String(value ?? '').trim(); if (!text) return null; const parts = text.includes('/') ? text.split('/') : text.split('-'); if (parts.length === 3) { const [a,b,c] = parts.map(Number); const date = text.includes('/') ? new Date(c, b - 1, a) : new Date(a, b - 1, c); if (!Number.isNaN(date.getTime())) return date; } const date = new Date(text); return Number.isNaN(date.getTime()) ? null : date; };
+    const isoDate = (date) => date ? `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}` : '';
+    const normalizeRows = (rows) => rows.map((row, index) => { const mapped = {}; Object.entries(row || {}).forEach(([key, value]) => mapped[normalizeKey(key)] = value); const date = parseDate(mapped.data); return { Id: mapped.id ?? index + 1, Nome: String(mapped.nome ?? '').trim() || `Cliente ${index + 1}`, Produto: String(mapped.produto ?? '').trim() || 'Sem produto', Valor: cleanNumber(mapped.valor), Data: isoDate(date) }; }).filter(row => row.Nome || row.Produto || row.Valor || row.Data);
+    const fmtDate = (value) => { const date = parseDate(value); return date ? dateFmt.format(date) : '—'; };
+    const toast = (message) => { $('toast').textContent = message; $('toast').classList.add('show'); window.clearTimeout(toast.timer); toast.timer = window.setTimeout(() => $('toast').classList.remove('show'), 3000); };
+    const aggregate = () => { const valid = data.filter(row => row.Data && Number.isFinite(row.Valor)); const total = valid.reduce((sum, row) => sum + row.Valor, 0); const products = valid.reduce((acc, row) => { acc[row.Produto] = (acc[row.Produto] || 0) + 1; return acc; }, {}); const dates = valid.map(row => parseDate(row.Data)).filter(Boolean).sort((a,b) => a-b); const maxRow = valid.reduce((best, row) => !best || row.Valor > best.Valor ? row : best, null); return { valid, total, products, dates, maxRow }; };
+    const updateKpis = () => { const { valid, total, products, dates, maxRow } = aggregate(); $('totalClients').textContent = integer.format(valid.length); $('totalValue').textContent = brl.format(total); $('averageValue').textContent = brl.format(valid.length ? total / valid.length : 0); $('dateRange').textContent = dates.length ? `${shortDateFmt.format(dates[0])} — ${shortDateFmt.format(dates[dates.length - 1])}` : '—'; $('topProduct').textContent = Object.entries(products).sort((a,b) => b[1]-a[1])[0]?.[0] || '—'; $('highestOrder').textContent = maxRow ? `${brl.format(maxRow.Valor)} · ${maxRow.Nome}` : '—'; $('latestDate').textContent = dates.length ? dateFmt.format(dates[dates.length - 1]) : '—'; $('chartPeriod').textContent = `${integer.format(valid.length)} registros`; };
+    const updateTable = () => { const query = $('searchInput').value.trim().toLowerCase(); const filtered = data.filter(row => `${row.Nome} ${row.Produto} ${row.Id}`.toLowerCase().includes(query)); $('tableBody').innerHTML = filtered.length ? filtered.map(row => `<tr><td class="mono">${row.Id}</td><td><strong>${escapeHtml(row.Nome)}</strong></td><td><span class="product-chip">${escapeHtml(row.Produto)}</span></td><td>${brl.format(row.Valor)}</td><td>${fmtDate(row.Data)}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">Nenhum registro encontrado.</td></tr>`; $('rowCount').textContent = `${integer.format(filtered.length)} / ${integer.format(data.length)} linhas`; };
+    const escapeHtml = (text) => String(text).replace(/[&<>'"]/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
+    const updateCharts = () => { const { valid, products } = aggregate(); const grouped = valid.reduce((acc, row) => { const key = row.Data; acc[key] = (acc[key] || 0) + row.Valor; return acc; }, {}); const dates = Object.keys(grouped).sort(); const common = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#101921', padding: 12, titleFont: { family: 'Manrope' }, bodyFont: { family: 'DM Mono' }, callbacks: { label: (ctx) => ` ${brl.format(ctx.raw)}` } } }, scales: { x: { grid: { display: false }, ticks: { color: '#819097', font: { family: 'DM Mono', size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }, y: { grid: { color: '#edf0f0' }, ticks: { color: '#819097', font: { family: 'DM Mono', size: 10 }, callback: (v) => brl.format(v).replace('R$', 'R$ ') } } } }; if (trendChart) trendChart.destroy(); trendChart = new Chart($('trendChart'), { type: 'line', data: { labels: dates.map(key => shortDateFmt.format(parseDate(key))), datasets: [{ data: dates.map(key => grouped[key]), borderColor: '#356dff', backgroundColor: 'rgba(53,109,255,.10)', fill: true, borderWidth: 2.5, tension: .36, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: '#ffffff', pointBorderColor: '#356dff', pointBorderWidth: 2 }] }, options: common }); if (productChart) productChart.destroy(); const productNames = Object.keys(products).sort((a,b) => products[b] - products[a]); productChart = new Chart($('productChart'), { type: 'doughnut', data: { labels: productNames, datasets: [{ data: productNames.map(name => products[name]), backgroundColor: ['#356dff','#24bfaa','#ff9969','#d5fa6f','#9aa7ff','#b8c7ce'], borderWidth: 3, borderColor: '#ffffff', hoverOffset: 5 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#60707c', boxWidth: 10, boxHeight: 10, padding: 13, font: { family: 'Manrope', size: 10 } } }, tooltip: { backgroundColor: '#101921', padding: 12, callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} cliente(s)` } } } } }); };
+    const refresh = () => { updateKpis(); updateTable(); updateCharts(); };
+    const importRows = (rows, fileName) => { const normalized = normalizeRows(rows); if (!normalized.length) { toast('Não encontrei linhas com dados reconhecíveis.'); return; } data = normalized; $('dataStatus').textContent = `${fileName} · ${normalized.length} linhas importadas`; refresh(); toast('Planilha importada e indicadores atualizados.'); };
+    $('importBtn').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const buffer = await file.arrayBuffer(); const workbook = XLSX.read(buffer, { type: 'array', cellDates: true }); const sheet = workbook.Sheets[workbook.SheetNames[0]]; importRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }), file.name); } catch (error) { toast('Não foi possível ler este arquivo Excel.'); console.error(error); } event.target.value = ''; });
+    $('sampleBtn').addEventListener('click', () => { data = [...sampleData]; $('dataStatus').textContent = 'Dados de exemplo carregados'; refresh(); toast('Exemplo restaurado.'); });
+    $('searchInput').addEventListener('input', updateTable);
+    const dropZone = $('dropZone'); ['dragenter','dragover'].forEach(eventName => dropZone.addEventListener(eventName, (event) => { event.preventDefault(); dropZone.classList.add('dragging'); })); ['dragleave','drop'].forEach(eventName => dropZone.addEventListener(eventName, (event) => { event.preventDefault(); dropZone.classList.remove('dragging'); })); dropZone.addEventListener('drop', async (event) => { const file = event.dataTransfer.files?.[0]; if (!file) return; try { const buffer = await file.arrayBuffer(); const workbook = XLSX.read(buffer, { type: 'array', cellDates: true }); const sheet = workbook.Sheets[workbook.SheetNames[0]]; importRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }), file.name); } catch (error) { toast('Solte um arquivo Excel ou CSV válido.'); } });
+    const toCsv = () => { const headers = ['Id','Nome','Produto','Valor','Data']; const lines = [headers, ...data.map(row => [row.Id, row.Nome, row.Produto, row.Valor.toFixed(2).replace('.', ','), fmtDate(row.Data)])].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(';')); return '\ufeff' + lines.join('\n'); };
+    $('csvBtn').addEventListener('click', () => { const blob = new Blob([toCsv()], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'dashboard-clientes.csv'; link.click(); URL.revokeObjectURL(url); toast('CSV exportado com sucesso.'); });
+    $('pdfBtn').addEventListener('click', async () => { const button = $('pdfBtn'); const original = button.innerHTML; button.disabled = true; button.innerHTML = 'Gerando PDF…'; try { const canvas = await html2canvas($('dashboard'), { scale: 1.6, backgroundColor: '#f6f7f4', useCORS: true, logging: false }); const image = canvas.toDataURL('image/jpeg', .94); const { jsPDF } = window.jspdf; const pdf = new jsPDF('p', 'mm', 'a4'); const width = 210; const height = canvas.height * width / canvas.width; let position = 0; pdf.addImage(image, 'JPEG', 0, position, width, height, undefined, 'FAST'); while (position + 297 < height) { position -= 297; pdf.addPage(); pdf.addImage(image, 'JPEG', 0, position, width, height, undefined, 'FAST'); } pdf.save('dashboard-clientes.pdf'); toast('PDF salvo com sucesso.'); } catch (error) { toast('Não foi possível gerar o PDF.'); console.error(error); } finally { button.disabled = false; button.innerHTML = original; } });
+    refresh();
+  </script>
+</body>
+</html>
